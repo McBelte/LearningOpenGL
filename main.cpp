@@ -9,33 +9,27 @@
 #include "glm/gtc/type_ptr.hpp"
 
 #include "Shader.h"
+#include "Camera.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
-
-float lastX = 400;
-float lastY = 300;
-
-float yaw = 0.0f;
-float pitch = 0.0f;
-
-bool firstMouse = true;
-
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-
+void scroll_callback(GLFWwindow* window, double xOffset, double yOffset);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
+float lastX = SCR_WIDTH / 2.0f;
+float lastY = SCR_HEIGHT / 2.0f;
+bool firstMouse = true;
+
 float mixValue = 0.2;
-    
-glm::vec3 cameraPos(0.0f, 0.0f, 3.0f);
-glm::vec3 cameraFront(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
+
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -62,6 +56,8 @@ int main()
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouse_callback);  
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -150,6 +146,7 @@ int main()
     else {
         std::cout << "Failed to load texture" << std::endl;
     }
+    stbi_image_free(data);
 
     unsigned int texture2;
     glGenTextures(1, &texture2);
@@ -169,6 +166,7 @@ int main()
     } else {
         std::cout << "Failed to load texture 2" << std::endl;
     }
+    stbi_image_free(data2);
 
     shader.use();
     shader.setInt("texture1", 0);
@@ -191,25 +189,30 @@ int main()
     glm::vec3(-1.3f,  1.0f, -1.5f)  
     };
 
+
     // -----------
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+        
+        processInput(window);
+
+        shader.use();
+
         //To camera
         glm::mat4 view;
-        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        view = camera.getViewMatrix();
         shader.setMat4("view", view);
 
         //To screen projection
         glm::mat4 projection;
-        projection = glm::perspective(glm::radians(45.0f), (float) SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
+        projection = glm::perspective(camera.zoom, (float) SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         shader.setMat4("projection", projection);
 
         // input
         // -----
-        processInput(window);
         shader.setFloat("mixValue", mixValue);
         // render
         // ------
@@ -247,6 +250,9 @@ int main()
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
+    
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
     glfwTerminate();
     return 0;
 }
@@ -268,15 +274,14 @@ void processInput(GLFWwindow *window)
         if(mixValue >= 1.0) {mixValue = 1.0;}
     }
         
-    float cameraSpeed = 2.5f*deltaTime; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += cameraSpeed * cameraFront;
+        camera.processKeyboard(CameraMovement::Forward, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeed * cameraFront;
+        camera.processKeyboard(CameraMovement::Backward, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        camera.processKeyboard(CameraMovement::Left, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        camera.processKeyboard(CameraMovement::Right, deltaTime);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -301,21 +306,9 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     lastX = xpos;
     lastY = ypos;
 
-    float sensitivity = 0.05;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw   += xoffset;
-    pitch += yoffset;
-
-    if(pitch > 89.0f)
-        pitch = 89.0f;
-    if(pitch < -89.0f)
-        pitch = -89.0f;
-
-    glm::vec3 front;
-    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    front.y = sin(glm::radians(pitch));
-    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront = glm::normalize(front);
+    camera.processMouseMovement(xoffset, yoffset, true);
 } 
+
+void scroll_callback(GLFWwindow* window, double yOffset, double xOffset) {
+    camera.processMouseScrolls(yOffset);
+}
