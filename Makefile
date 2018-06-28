@@ -20,4 +20,4 @@ $(TARGET) : $(OBJECTS)
 
 .PHONY : clean 
 clean : 
-	-rm $(TARGET) $(OBJECTS)	
+	-rm -f $(TARGET) $(OBJECTS)	
