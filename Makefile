@@ -1,14 +1,23 @@
 IDIR = /includes
 
-
+SRCDIR=src
 CXX=g++
 CXXFLAGS= -I. -std=c++14
 CXXLIBS = -lGL -lglfw -ldl
-DEPS = 
-OBJ = main.o glad.o Shader.o Camera.o
 
-%.o: %.c $(DEPS)
+DEPS = 
+
+_OBJECTS = main.o glad.o Shader.o Camera.o
+OBJECTS = $(patsubst %,$(SRCDIR)/%,$(_OBJECTS))
+
+TARGET = main
+
+$(SRCDIR)/%.o: %.c $(DEPS)
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
-main: $(OBJ)
+$(TARGET) : $(OBJECTS)
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(CXXLIBS)
+
+.PHONY : clean 
+clean : 
+	-rm main $(OBJECTS)	
