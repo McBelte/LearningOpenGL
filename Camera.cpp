@@ -39,7 +39,6 @@ void Camera::processKeyboard(const CameraMovement& direction, float deltaTime)
             position -= right * velocity;
             break;
     }
-    position.y = 0.0f;
 }
 
 void Camera::processMouseMovement(float xOffset, float yOffset, GLboolean constrainPitch)
