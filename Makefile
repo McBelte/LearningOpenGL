@@ -10,7 +10,7 @@ DEPS =
 _OBJECTS = main.o glad.o Shader.o Camera.o
 OBJECTS = $(patsubst %,$(SRCDIR)/%,$(_OBJECTS))
 
-TARGET = main
+TARGET = main.out
 
 $(SRCDIR)/%.o: %.c $(DEPS)
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
@@ -20,4 +20,4 @@ $(TARGET) : $(OBJECTS)
 
 .PHONY : clean 
 clean : 
-	-rm main $(OBJECTS)	
+	-rm $(TARGET) $(OBJECTS)	
