@@ -11,12 +11,12 @@
 #include "Shader.h"
 #include "Camera.h"
 #include "Model.h"
+#include "Window.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window);
+void processInput(const Window& window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xOffset, double yOffset);
 
@@ -30,7 +30,24 @@ bool firstMouse = true;
 
 float mixValue = 0.2;
 
+glm::vec3 pointLightPositions[] = {
+	glm::vec3( 0.7f,  0.2f,  2.0f),
+	glm::vec3( 2.3f, -3.3f, -4.0f),
+}; 
+
+glm::vec3 pointLightColors[] = {
+    glm::vec3(0.2f, 0.2f, 0.2f),
+    glm::vec3(0.2f, 0.2f, 0.2f),
+};
+
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
+
+DirectionalLight dirLight(glm::vec3(0.1f, 0.1f, 0.1f), glm::vec3(0.05f, 0.05f, 0.05f), glm::vec3(0.4f, 0.4f, 0.4f), glm::vec3(0.5f, 0.5f, 0.5f));
+
+std::vector<PointLight> pointLights {
+    PointLight(pointLightPositions[0], pointLightColors[0] * 0.1f, pointLightColors[0], pointLightColors[0]),
+    PointLight(pointLightPositions[1], pointLightColors[0] * 0.1f, pointLightColors[1], pointLightColors[1]),
+};
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -44,20 +61,12 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // glfw window creation
-    // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
-    if (window == nullptr)
-    {
-        std::cout << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(window);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(window, mouse_callback);  
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetScrollCallback(window, scroll_callback);
+    std::string windowTitle("LearnOpenGL");
+    Window window(windowTitle, SCR_WIDTH, SCR_HEIGHT);
+
+    glfwSetCursorPosCallback(window.window(), mouse_callback);  
+    glfwSetFramebufferSizeCallback(window.window(), framebuffer_size_callback);
+    glfwSetScrollCallback(window.window(), scroll_callback);
 
 
     // glad: load all OpenGL function pointers
@@ -68,15 +77,15 @@ int main()
         return -1;
     } 
     
-    
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_STENCIL_TEST);
 
     Shader ourShader("shaders/lighting/standardShader.vs", "shaders/lighting/standardShader.fs");
     
     const std::string path("nanosuit/nanosuit.obj");
     Model ourModel(path.c_str());
     // -----------
-    while (!glfwWindowShouldClose(window))
+    while (!window.shouldClose())
     {
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
@@ -84,9 +93,9 @@ int main()
 
         processInput(window);
 
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
+        glClearColor(0.75f, 0.52f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
         ourShader.use();
 
         glm::mat4 projection = glm::perspective(glm::radians(camera.zoom), (float)SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
@@ -100,16 +109,13 @@ int main()
         ourShader.setMat4("model", model);
 
         ourShader.setVec3("viewPos", camera.position);
-        ourShader.setVec3("dirLight.direction", glm::vec3(0.0f, 0.0f, 1.0f));
-        ourShader.setVec3("dirLight.ambient", glm::vec3(0.05f, 0.05f, 0.05f));
-        ourShader.setVec3("dirLight.diffuse", glm::vec3(0.4f, 0.4f, 0.4f));
-        ourShader.setVec3("dirLight.specular", glm::vec3(0.5f, 0.5f, 0.5f));
+        ourShader.setDirectionalLight(dirLight);
+        ourShader.setPointLight(pointLights);
         ourShader.setFloat("material.shininess", 32.0f);
 
         ourModel.Draw(ourShader);
 
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        window.update();
     }
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
@@ -120,38 +126,30 @@ int main()
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
+void processInput(const Window& window)
 {
-    if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-    
-    if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+    if(glfwGetKey(window.window(), GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        window.close();
+    }
+
+    if(glfwGetKey(window.window(), GLFW_KEY_DOWN) == GLFW_PRESS) {
         mixValue -= 0.01;
         if(mixValue <= 0.0) {mixValue = 0.0;}
     }
         
-    if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+    if(glfwGetKey(window.window(), GLFW_KEY_UP) == GLFW_PRESS) {
         mixValue += 0.01;
         if(mixValue >= 1.0) {mixValue = 1.0;}
     }
         
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    if (glfwGetKey(window.window(), GLFW_KEY_W) == GLFW_PRESS)
         camera.processKeyboard(CameraMovement::Forward, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    if (glfwGetKey(window.window(), GLFW_KEY_S) == GLFW_PRESS)
         camera.processKeyboard(CameraMovement::Backward, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    if (glfwGetKey(window.window(), GLFW_KEY_A) == GLFW_PRESS)
         camera.processKeyboard(CameraMovement::Left, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    if (glfwGetKey(window.window(), GLFW_KEY_D) == GLFW_PRESS)
         camera.processKeyboard(CameraMovement::Right, deltaTime);
-}
-
-// glfw: whenever the window size changed (by OS or user resize) this callback function executes
-// ---------------------------------------------------------------------------------------------
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-    // make sure the viewport matches the new window dimensions; note that width and 
-    // height will be significantly larger than specified on retina displays.
-    glViewport(0, 0, width, height);
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {

@@ -3,9 +3,13 @@
 #include <glad/glad.h>
 
 #include <string>
+#include <vector>
 
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
+
+#include "DirectionalLight.h"
+#include "PointLight.h"
 
 class Shader {
 public:
@@ -21,4 +25,8 @@ public:
     void setVec3(const std::string& name, const glm::vec3& vector) const;
     void setVec3(const std::string& name, float x, float y, float z) const;
     void setMat4(const std::string& name, const glm::mat4& matrix) const;
+
+    void setDirectionalLight(const DirectionalLight& light) const;
+    void setPointLight(const std::vector<PointLight>& pointLights) const;
+
 };

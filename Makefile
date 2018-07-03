@@ -8,7 +8,7 @@ CXXLIBS = -lGL -lglfw -ldl -lassimp
 DEPS = 
 
 _OBJECTS = main.o glad.o Shader.o Camera.o Mesh.o \
-	  Model.o
+	  Model.o Window.o DirectionalLight.o PointLight.o
 OBJECTS = $(patsubst %,$(SRCDIR)/%,$(_OBJECTS))
 
 TARGET = main.out

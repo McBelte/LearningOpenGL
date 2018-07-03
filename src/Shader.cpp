@@ -115,3 +115,25 @@ void Shader::setMat4(const std::string& name, const glm::mat4& matrix) const
 {
     glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(matrix));
 }
+
+void Shader::setDirectionalLight(const DirectionalLight& light) const {
+    this->setVec3("dirLight.direction", light.direction());
+    this->setVec3("dirLight.specular", light.specular());
+    this->setVec3("dirLight.diffuse", light.diffuse());
+    this->setVec3("dirLight.ambient", light.ambient());
+}
+
+void Shader::setPointLight(const std::vector<PointLight>& lights) const {
+    for(std::vector<PointLight>::size_type i = 0; i < lights.size(); ++i) {
+        std::string path = "pointLights[" + std::to_string(i) + "]";
+        
+        this->setVec3(path + ".position", lights[i].position());
+        this->setVec3(path + ".ambient", lights[i].ambient());
+        this->setVec3(path + ".diffuse", lights[i].diffuse());
+        this->setVec3(path + ".specular", lights[i].specular());
+
+        this->setFloat(path + ".constant", lights[i].Kc());
+        this->setFloat(path + ".linear", lights[i].Kl());
+        this->setFloat(path + ".quadratic", lights[i].Kq());
+    }  
+}
